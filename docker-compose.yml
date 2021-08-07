@@ -1,0 +1,24 @@
+version: '3'
+services:
+  mongo:
+    container_name: my-mongo
+    image: "mongo:latest"
+    restart: always
+    ports:
+      - 27017:27017
+    volumes:
+      - ${DockerDataPath}/mongo:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: aaaaa
+  postgres:
+    container_name: my-postgres
+    image: "postgres:latest"
+    restart: always
+    ports:
+      - "5432:5432"
+    volumes:
+      - ${DockerDataPath}/postgresql:/var/lib/postgresql/data
+    environment:
+      PGDATA: /var/lib/postgresql/data/pgdata
+      POSTGRES_PASSWORD: aaaaa
