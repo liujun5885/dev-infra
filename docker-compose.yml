@@ -37,7 +37,8 @@ services:
     ports:
       - "3306:3306"
     volumes:
-      - ${DockerDataPath}/mysql:/var/lib/mysql
+      - ${DockerDataPath}/mysql/data:/var/lib/mysql
+      - ${DockerDataPath}/mysql/conf:/etc/mysql/conf.d
     environment:
       MYSQL_ROOT_PASSWORD: aaaaa
 #     MYSQL_ALLOW_EMPTY_PASSWORD: yes
