@@ -30,3 +30,14 @@ services:
       - "6379:6379"
     volumes:
       - ${DockerDataPath}/redis/conf:/usr/local/etc/redis
+  mysql:
+    container_name: my-mysql
+    image: "mysql:latest"
+    restart: always
+    ports:
+      - "3306:3306"
+    volumes:
+      - ${DockerDataPath}/mysql:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: aaaaa
+#     MYSQL_ALLOW_EMPTY_PASSWORD: yes
