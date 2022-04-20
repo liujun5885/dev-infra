@@ -1,10 +1,10 @@
-# launch databases, take mysql as an example.
+# launch one service, take mysql as an example.
 
 ```shell
 docker-compose up -d mysql
 ```
 
-# launch all
+# launch all services
 
 ```shell
 docker-compose up -d
