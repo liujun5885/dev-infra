@@ -1,7 +1,25 @@
+# Env, all docker data will be stored under folder `~/docker-data/`, refer to file '.env'
+
+```shell
+DockerDataPath=~/docker-data/
+```
+
+# supported database
+
+- mysql
+- rabbitmq
+- redis
+- postgresql
+- mongodb
+
 # launch one service, take mysql as an example.
 
 ```shell
-docker-compose up -d mysql
+docker-compose up -d mysql # launch mysql
+docker-compose up -d rabbit # launch rabbit
+docker-compose up -d redis # launch redis
+docker-compose up -d postgres # launch postgresql
+docker-compose up -d mongo # launch mongodb
 ```
 
 # launch all services
@@ -10,12 +28,12 @@ docker-compose up -d mysql
 docker-compose up -d
 ```
 
-# all data will be stored under folder `~/docker-data/`
+# install mycli, which is a powerful mysql cli. [official link](https://www.mycli.net/)
 
-# install mycli
+## install command
 
 ```shell
-pip install mycli
+pip3 install mycli
 ```
 
 ## error `click version incompitable`
