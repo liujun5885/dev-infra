@@ -1,7 +1,7 @@
 # Env, all docker data will be stored under folder `~/docker-data/`, refer to file '.env'
 
 ```shell
-DockerDataPath=~/docker-data/
+DOCKER_DATA_DIR=~/docker-data/
 ```
 
 # supported database
