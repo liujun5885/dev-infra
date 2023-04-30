@@ -1,60 +1,211 @@
-version: '3'
+name: local-infra
 services:
-  mongo:
-    container_name: my-mongo
-    image: "mongo:latest"
+  redis:
+    # https://hub.docker.com/_/redis
+    container_name: infra-redis
+    image: redis:alpine
+    user: redis
     restart: always
     ports:
-      - 27017:27017
+      - "6379:6379"
     volumes:
-      - ${DockerDataPath}/mongo:/data/db
+      - ${DOCKER_DATA_DIR}/redis/conf:/usr/local/etc/redis
+    networks:
+      - infra
+
+  rabbitmq:
+    # https://hub.docker.com/_/rabbitmq
+    container_name: infra-rabbitmq
+    image: rabbitmq:management-alpine
+    restart: always
+    user: rabbitmq
+    hostname: infra-rabbitmq
     environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: aaaaa
+      RABBITMQ_DEFAULT_USER: root
+      RABBITMQ_DEFAULT_PASS: root
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - ${DOCKER_DATA_DIR}/rabbitmq/data:/var/lib/rabbitmq
+    networks:
+      - infra
+
+  mysql:
+    # https://hub.docker.com/_/mysql
+    container_name: infra-mysql
+    image: mysql:8-oracle
+    user: mysql
+    restart: always
+    command:
+      - --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ALLOW_EMPTY_PASSWORD: yes
+    ports:
+      - "3306:3306"
+    volumes:
+      - ${DOCKER_DATA_DIR}/mysql/data:/var/lib/mysql
+      - ${DOCKER_DATA_DIR}/mysql/conf:/etc/mysql/conf.d
+    networks:
+      - infra
+
+  mysql5:
+    # https://hub.docker.com/_/mysql
+    container_name: infra-mysql5
+    platform: linux/amd64
+    image: mysql:5
+    user: mysql
+    restart: always
+    command:
+      - --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: yes
+    ports:
+      - "5306:3306"
+    volumes:
+      - ${DOCKER_DATA_DIR}/mysql5/data:/var/lib/mysql
+      - ${DOCKER_DATA_DIR}/mysql5/conf:/etc/mysql/conf.d
+    networks:
+      - infra
+
   postgres:
-    container_name: my-postgres
+    container_name: infra-postgres
     image: "postgres:latest"
     restart: always
     ports:
       - "5432:5432"
     volumes:
-      - ${DockerDataPath}/postgresql:/var/lib/postgresql/data
+      - ${DOCKER_DATA_DIR}/postgresql:/var/lib/postgresql/data
     environment:
+      # POSTGRES_HOST_AUTH_METHOD: trust  # don't need password
       PGDATA: /var/lib/postgresql/data/pgdata
+      POSTGRES_USER: aa
       POSTGRES_PASSWORD: aaaaa
-  redis:
-    container_name: my-redis
-    image: "redis:latest"
+    networks:
+      - infra
+
+  mongo:
+    container_name: infra-mongo
+    image: "mongo:latest"
     restart: always
     ports:
-      - "6379:6379"
+      - 27017:27017
     volumes:
-      - ${DockerDataPath}/redis/conf:/usr/local/etc/redis
-  mysql:
-    # https://hub.docker.com/_/mysql
-    container_name: my-mysql
-    command: --default-authentication-plugin=mysql_native_password
-    image: "mysql:latest"
-    restart: always
-    ports:
-      - "3306:3306"
-    volumes:
-      - ${DockerDataPath}/mysql/data:/var/lib/mysql
-      - ${DockerDataPath}/mysql/conf:/etc/mysql/conf.d
+      - ${DOCKER_DATA_DIR}/mongo:/data/db
     environment:
-      MYSQL_ROOT_PASSWORD: aaaaa
-  #   MYSQL_ALLOW_EMPTY_PASSWORD: yes
-  rabbit:
-    # https://hub.docker.com/_/rabbitmq
-    container_name: my-rabbit
-    hostname: my-rabbit
-    image: "rabbitmq:3-management"
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: aaaaa
+    networks:
+      - infra
+
+  # https://hub.docker.com/r/obsidiandynamics/kafdrop
+  kafdrop:
+    container_name: infra-kafdrop
+    restart: always
+    image: obsidiandynamics/kafdrop
+    ports:
+      - "9000:9000"
+    environment:
+      KAFKA_BROKERCONNECT: "kafka:9092"
+      JVM_OPTS: "-Xms16M -Xmx48M -Xss180K -XX:-TieredCompilation -XX:+UseStringDeduplication -noverify"
+    depends_on:
+      - "kafka"
+    networks:
+      - infra
+
+  kafka-ui:
+    container_name: infra-kafka-ui
+    restart: always
+    image: provectuslabs/kafka-ui:latest
+    ports:
+      - "19092:19092"
+    environment:
+      SERVER_PORT: 19092
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+    networks:
+      - infra
+    depends_on:
+      - kafka
+
+  # https://hub.docker.com/r/bitnami/kafka
+  kafka:
+    container_name: infra-kafka
+    restart: always
+    image: bitnami/kafka:latest
+    ports:
+      - "9092:9092"
+    environment:
+      - KAFKA_ENABLE_KRAFT=yes
+      - KAFKA_CFG_PROCESS_ROLES=broker,controller
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://infra-kafka:9092
+      - KAFKA_BROKER_ID=1
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@127.0.0.1:9093
+      - ALLOW_PLAINTEXT_LISTENER=yes
+    networks:
+      - infra
+
+  # https://neo4j.com/docs/operations-manual/current/docker/
+  neo4j:
+    container_name: infra-neo4j
+    image: "neo4j:latest"
     restart: always
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "7474:7474"
+      - "7687:7687"
     volumes:
-      - ${DockerDataPath}/rabbitmq/data:/var/lib/rabbitmq
+      - ${DOCKER_DATA_DIR}/neo4j/data:/data
+      - ${DOCKER_DATA_DIR}/neo4j/logs:/logs
+      - ${DOCKER_DATA_DIR}/neo4j/conf:/conf
+    networks:
+      - infra
     environment:
-      RABBITMQ_DEFAULT_USER: root
-      RABBITMQ_DEFAULT_PASS: aaaaa
+      - NEO4J_AUTH=neo4j/aaaaa
+
+  # https://hub.docker.com/r/minio/minio/
+  minio:
+    container_name: infra-minio
+    image: "minio/minio:latest"
+    restart: always
+    ports:
+      - "9090:9090"
+      - "9091:9091"
+    volumes:
+      - ${DOCKER_DATA_DIR}/minio/data:/data
+    networks:
+      - infra
+    environment:
+      - MINIO_ROOT_USER=AKIAIOSFODNN7EXAMPLE
+      - MINIO_ROOT_PASSWORD=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    command:
+      - server
+      - /data
+      - --address
+      - ":9090"
+      - --console-address
+      - ":9091"
+
+  mssql:
+    # https://hub.docker.com/_/microsoft-mssql-server
+    container_name: infra-mssql
+    image: mcr.microsoft.com/mssql/server:2017-CU30-ubuntu-18.04
+    restart: always
+    environment:
+      SA_PASSWORD: "Tesla@123"
+      ACCEPT_EULA: "Y"
+    ports:
+      - "1433:1433"
+    volumes:
+      - ${DOCKER_DATA_DIR}/mssql/data:/var/opt/mssql
+    networks:
+      - infra
+
+networks:
+  infra:
+    name: infra
+    driver: bridge
